@@ -1,20 +1,17 @@
 # -*- coding:utf-8 -*-
 
-import tkinter as tk
-import tkinter.messagebox as ms
-import tkinter.font as f
-import threading
-from pomodoro import Pomodoro
-import queue
-import time
 import os
+import queue
+import threading
+import time
+import tkinter as tk
+import tkinter.font as f
+import tkinter.messagebox as ms
+from pomodoro import Pomodoro
 
 
 class Ventana:
     def __init__(self):
-
-        self.alarm_path = 'alarma.mp3'
-
         self._pomodoro = Pomodoro()
         self.isPomodoro = True
 
@@ -34,10 +31,13 @@ class Ventana:
 
         self._text_reloj = '00:00'
 
+        ### Pantalla principal
         self._root = tk.Tk()
         self._root.title('Pomodoro')
-        self._root.geometry('400x400')
+        self._root.geometry('350x250+450+150')
+        self._root.resizable(False, False)
 
+        ### Frames
         self._frame_principal = tk.Frame(self._root)
         self._frame_principal.pack(expand=True, fill=tk.BOTH)
 
@@ -50,26 +50,37 @@ class Ventana:
         self._frame_boton = tk.Frame(self._frame_principal)
         self._frame_boton.pack(expand=True, fill=tk.X, side=tk.BOTTOM)
 
+        ### Fila del pomodoro
+        fontPomodoro = ('Arial', 16)
         self._pomodoro_title = tk.Label(self._frame_pomodoro,
-                                        text='Pomodoro #')
-        self._pomodoro_title.grid(row=0, column=0)
-        self._pomodoro_count = tk.Label(self._frame_pomodoro, text='0')
+                                        text='Pomodoro #',
+                                        font=fontPomodoro)
+        self._pomodoro_title.grid(row=0, column=0, padx=20)
+        self._pomodoro_count = tk.Label(self._frame_pomodoro,
+                                        text='0',
+                                        font=fontPomodoro)
         self._pomodoro_count.grid(row=0, column=1)
 
+        ### Fila central o del reloj
         self._reloj = tk.Label(self._frame_reloj,
                                text=self._text_reloj,
-                               font=('Times', 40))
+                               font=('Times', 56))
         self._reloj.pack()
 
+        ### Botones
+        fontButton = ('Arial', 12)
         self._boton_iniciar = tk.Button(self._frame_boton,
                                         text='Iniciar',
-                                        command=self._on_boton_iniciar_click)
-        self._boton_iniciar.grid(column=0, row=0)
+                                        command=self._on_boton_iniciar_click,
+                                        font=fontButton)
+        self._boton_iniciar.grid(column=0, row=0, padx=50)
         self._boton_cancelar = tk.Button(self._frame_boton,
                                          text='Cancelar',
-                                         command=self._on_boton_cancelar_click)
-        self._boton_cancelar.grid(column=2, row=0)
+                                         command=self._on_boton_cancelar_click,
+                                         font=fontButton)
+        self._boton_cancelar.grid(column=2, row=0, padx=40)
 
+    ### Metodos de la clase
     def _setReloj(self, tiempo):
         self._reloj.configure(text=tiempo)
 
@@ -79,6 +90,7 @@ class Ventana:
     def run(self):
         self._root.mainloop()
 
+    ### Eventos botones
     def _on_boton_iniciar_click(self):
 
         if (self.isPomodoro):
@@ -117,6 +129,7 @@ class Ventana:
             self._pomodoro.pomodoro = 0
             self._boton_iniciar.configure(state=tk.ACTIVE)
 
+    ### Eventos de hilos
     def _on_evento_reloj(self):
         while (True):
 
@@ -160,7 +173,7 @@ class Ventana:
         self._pomodoro.init_attributes()
 
         if (not sw):
-            
+
             respuesta = ms.askyesno('CONTINUAR', 'Desea continuar?')
             if (respuesta):
                 self._on_boton_iniciar_click()

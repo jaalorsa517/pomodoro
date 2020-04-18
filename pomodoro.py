@@ -4,7 +4,7 @@ import time as t
 
 class Pomodoro:
     def __init__(self):
-        self.POMODORO_MIN = 1
+        self.POMODORO_MIN = 25
         self.DESCANSO_MIN = 5
         self.pomodoro = 0  #Ciclo de 25 minutos
         self.init_attributes()
