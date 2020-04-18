@@ -1,19 +1,28 @@
 # -*- coding:utf-8 -*-
 
 import tkinter as tk
+import tkinter.messagebox as ms
+import tkinter.font as f
 import threading
+from pomodoro import Pomodoro
 import queue
 import time
-from pomodoro import Pomodoro
+import os
 
 
 class Ventana:
     def __init__(self):
 
-        self._pomodoro = Pomodoro()
+        self.alarm_path = 'alarma.mp3'
 
+        self._pomodoro = Pomodoro()
+        self.isPomodoro = True
+
+        #Cola que controla el temporizador
         self._fifo_counter = queue.Queue(1)
+        #Cola que controla la permutacion del label
         self._fifo_evento_reloj = queue.Queue(2)
+        #Cola que controla el hilo del evento del reloj
         self._fifo_evento_reloj_control = queue.Queue(1)
 
         self._evento_reloj = threading.Thread(name='evento_reloj',
@@ -47,18 +56,15 @@ class Ventana:
         self._pomodoro_count = tk.Label(self._frame_pomodoro, text='0')
         self._pomodoro_count.grid(row=0, column=1)
 
-        self._reloj = tk.Label(self._frame_reloj, text=self._text_reloj)
+        self._reloj = tk.Label(self._frame_reloj,
+                               text=self._text_reloj,
+                               font=('Times', 40))
         self._reloj.pack()
 
         self._boton_iniciar = tk.Button(self._frame_boton,
                                         text='Iniciar',
                                         command=self._on_boton_iniciar_click)
         self._boton_iniciar.grid(column=0, row=0)
-        self._boton_reiniciar = tk.Button(
-            self._frame_boton,
-            text='Reiniciar',
-            command=self._on_boton_reiniciar_clic)
-        self._boton_reiniciar.grid(column=1, row=0)
         self._boton_cancelar = tk.Button(self._frame_boton,
                                          text='Cancelar',
                                          command=self._on_boton_cancelar_click)
@@ -74,29 +80,45 @@ class Ventana:
         self._root.mainloop()
 
     def _on_boton_iniciar_click(self):
-        self._setPomodoroCount(self._pomodoro.pomodoro)
-        self._hilo_counter = threading.Thread(name='hilo_counter',
-                                              target=self._hilo_temporizador)
+
+        if (self.isPomodoro):
+            tk.messagebox.showinfo('POMODORO', 'Inicio del pomodoro')
+            self._hilo_counter = threading.Thread(
+                name='hilo_counter',
+                target=self._hilo_temporizador,
+                args=(self._pomodoro.POMODORO_MIN, ))
+            self.isPomodoro = False
+        else:
+            ms.showinfo('DESCANSO', 'Inicio del descanso')
+            if (self._pomodoro.pomodoro == 4):
+                self._pomodoro.pomodoro = 0
+                self._pomodoro.descanso_final()
+                self._hilo_counter = threading.Thread(
+                    name='hilo_counter',
+                    target=self._hilo_temporizador,
+                    args=(self._pomodoro.DESCANSO_MIN * 4, ))
+
+            else:
+                self._hilo_counter = threading.Thread(
+                    name='hilo_counter',
+                    target=self._hilo_temporizador,
+                    args=(self._pomodoro.DESCANSO_MIN, ))
+            self.isPomodoro = True
+
         self._hilo_counter.start()
         self._fifo_counter.put('init')
         self._boton_iniciar.configure(state=tk.DISABLED)
-        self._boton_reiniciar.configure(state=tk.DISABLED)
-
-    def _on_boton_reiniciar_clic(self):
-        self._fifo_evento_reloj.put(self._text_reloj)
-        self._setReloj(self._text_reloj)
-        self._pomodoro.init_attributes()
-        self._boton_iniciar.configure(state=tk.ACTIVE)
 
     def _on_boton_cancelar_click(self):
 
         if (self._fifo_counter.full()):
             self._fifo_counter.get()
-            self._boton_reiniciar.configure(state=tk.ACTIVE)
+            self._fifo_evento_reloj.put(self._text_reloj)
+            self._pomodoro.pomodoro = 0
+            self._boton_iniciar.configure(state=tk.ACTIVE)
 
     def _on_evento_reloj(self):
         while (True):
-            time.sleep(0.5)
 
             if (self._fifo_evento_reloj.full()):
                 text_init = self._fifo_evento_reloj.get()
@@ -109,18 +131,41 @@ class Ventana:
                     self._setReloj(text_update)
                     self._fifo_evento_reloj.put(text_update)
 
-            if (self._fifo_evento_reloj_control.empty()):
-                break
+    def _hilo_temporizador(self, limit):
 
-        print('Fin hilo ' + self._evento_reloj.getName())
+        if (not self.isPomodoro):
+            self._pomodoro.pomodoro += 1
 
-    def _hilo_temporizador(self):
+        self._setPomodoroCount(self._pomodoro.pomodoro)
 
-        for i in range(self._pomodoro.POMODORO_MIN * 60):
-            self._fifo_evento_reloj.put(self._pomodoro.initied_temporizador())
+        sw = False  #Bandera para determinar si el hilo se cancela
+        for i in range(limit * 60):
+            if (not self.isPomodoro):
+                self._fifo_evento_reloj.put(
+                    self._pomodoro.initied_temporizador())
+            else:
+                self._fifo_evento_reloj.put(self._pomodoro.initied_descanso())
+
             if (self._fifo_counter.empty()):
+                if (self.isPomodoro):
+                    self.isPomodoro = False
+                else:
+                    self.isPomodoro = True
+                sw = True
                 break
-        print('Fin hilo' + self._hilo_counter.getName())
+
+        if (self._fifo_counter.full()):
+            self._fifo_counter.get()
+
+        self._pomodoro.init_attributes()
+
+        if (not sw):
+            
+            respuesta = ms.askyesno('CONTINUAR', 'Desea continuar?')
+            if (respuesta):
+                self._on_boton_iniciar_click()
+            else:
+                self._on_boton_cancelar_click()
 
 
 if __name__ == "__main__":
